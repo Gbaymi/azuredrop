@@ -1,0 +1,15 @@
+# Node dependencies
+backend/node_modules/
+backend/uploads/
+
+# Environment files with secrets
+.env
+*.env
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/

@@ -1,0 +1,53 @@
+name: AzureDrop CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies and run tests
+        run: |
+          cd backend
+          npm install
+          # You can add npm test here when test scripts are added
+
+      - name: Build Docker containers locally to verify configuration
+        run: |
+          docker compose build
+
+  deploy-to-azure:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Azure VM over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AZURE_VM_IP }}
+          username: ${{ secrets.AZURE_VM_USER }}
+          key: ${{ secrets.AZURE_SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/azuredrop || git clone https://github.com/${{ github.repository }}.git ~/azuredrop
+            cd ~/azuredrop
+            git pull origin main
+            docker compose down
+            docker compose up --build -d
+            docker system prune -f

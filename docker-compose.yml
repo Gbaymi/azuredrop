@@ -34,9 +34,10 @@ services:
     image: nginx:alpine
     container_name: azuredrop_nginx
     ports:
-      - "80:80"        # Exposes port 80 for Nginx reverse proxy
+      - "80:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/index.html:/usr/share/nginx/html/index.html
     depends_on:
       - api
 

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AzureDrop - File Upload Platform</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; background: #f4f7f6; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { color: #0078d4; }
+        input[type="file"] { margin: 15px 0; }
+        button { background: #0078d4; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #005a9e; }
+        #status { margin-top: 15px; font-weight: bold; }
+        ul { background: #eee; padding: 15px 30px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>AzureDrop File Upload</h2>
+        <input type="file" id="fileInput" />
+        <br>
+        <button onclick="uploadFile()">Upload File</button>
+        <div id="status"></div>
+
+        <h3>Uploaded Files</h3>
+        <ul id="fileList"></ul>
+    </div>
+
+    <script>
+        async function fetchFiles() {
+            const res = await fetch('/api/files');
+            const data = await res.json();
+            const list = document.getElementById('fileList');
+            list.innerHTML = '';
+            data.files.forEach(f => {
+                const li = document.createElement('li');
+                li.textContent = `${f.original_name} (${(f.file_size/1024).toFixed(1)} KB)`;
+                list.appendChild(li);
+            });
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files[0]) return alert('Select a file first!');
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            document.getElementById('status').innerText = 'Uploading...';
+            const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            
+            if (res.ok) {
+                document.getElementById('status').innerText = 'Upload Successful!';
+                fileInput.value = '';
+                fetchFiles();
+            } else {
+                document.getElementById('status').innerText = 'Upload Failed!';
+            }
+        }
+
+        fetchFiles();
+    </script>
+</body>
+</html>
