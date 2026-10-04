@@ -4,30 +4,23 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Azure Storage & Identity SDKs
-const { BlobServiceClient } = require('@azure/storage-blob');
-const { DefaultAzureCredential } = require('@azure/identity');
+// AWS S3 SDK
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 
 const app = express();
 app.use(express.json());
 
 // 1. Storage Configuration
-const UPLOAD_MODE = process.env.UPLOAD_MODE || 'local'; // 'azure' or 'local'
-const AZURE_STORAGE_ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_NAME;
-const AZURE_CONTAINER_NAME = process.env.AZURE_CONTAINER_NAME || 'azuredrop-files';
+const UPLOAD_MODE = process.env.UPLOAD_MODE || 'local'; // 'aws' or 'local'
+const AWS_REGION = process.env.AWS_REGION || 'eu-west-1'; // Match your bucket region
+const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME;
 
-let blobContainerClient = null;
+let s3Client = null;
 
-if (UPLOAD_MODE === 'azure' && AZURE_STORAGE_ACCOUNT_NAME) {
-  // Uses VM System-Assigned Managed Identity automatically via DefaultAzureCredential
-  const accountUrl = `https://${AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net`;
-  const blobServiceClient = new BlobServiceClient(accountUrl, new DefaultAzureCredential());
-  blobContainerClient = blobServiceClient.getContainerClient(AZURE_CONTAINER_NAME);
-
-  // Auto-create storage container if it doesn't exist
-  blobContainerClient.createIfNotExists().then(() => {
-    console.log(`Connected to Azure Blob Storage Container: ${AZURE_CONTAINER_NAME}`);
-  }).catch(err => console.error('Azure Storage init error:', err.message));
+if (UPLOAD_MODE === 'aws' && S3_BUCKET_NAME) {
+  // Automatically uses the EC2 IAM Instance Profile for authentication
+  s3Client = new S3Client({ region: AWS_REGION });
+  console.log(`Configured for AWS S3 Bucket: ${S3_BUCKET_NAME}`);
 } else {
   console.log('Running in LOCAL file upload mode');
 }
@@ -38,8 +31,8 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-// Configure Multer (Buffer memory storage for Azure streaming, disk for local)
-const storage = UPLOAD_MODE === 'azure' ? multer.memoryStorage() : multer.diskStorage({
+// Configure Multer (Buffer memory storage for AWS, disk for local)
+const storage = UPLOAD_MODE === 'aws' ? multer.memoryStorage() : multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -57,7 +50,6 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
 });
 
-// Auto-create PostgreSQL 'files' table
 const initDb = async () => {
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS files (
@@ -83,61 +75,49 @@ initDb();
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
-    res.status(200).json({ 
-      status: 'UP', 
-      database: 'connected', 
-      mode: UPLOAD_MODE,
-      timestamp: new Date().toISOString() 
-    });
+    res.status(200).json({ status: 'UP', database: 'connected', mode: UPLOAD_MODE });
   } catch (err) {
     res.status(500).json({ status: 'DOWN', database: err.message });
   }
 });
 
-// 5. File Upload Endpoint (Handles both Azure & Local)
+// 5. File Upload Endpoint
 app.post('/api/files/upload', upload.single('file'), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded.' });
-    }
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
 
     const { originalname, mimetype, size } = req.file;
     let fileStoragePath = '';
 
-    if (UPLOAD_MODE === 'azure' && blobContainerClient) {
-      // Stream file directly to Azure Blob Storage
+    if (UPLOAD_MODE === 'aws' && s3Client) {
       const blobName = `${Date.now()}-${originalname}`;
-      const blockBlobClient = blobContainerClient.getBlockBlobClient(blobName);
       
-      await blockBlobClient.uploadData(req.file.buffer, {
-        blobHTTPHeaders: { blobContentType: mimetype }
+      const command = new PutObjectCommand({
+        Bucket: S3_BUCKET_NAME,
+        Key: blobName,
+        Body: req.file.buffer,
+        ContentType: mimetype
       });
-      
-      fileStoragePath = blockBlobClient.url;
+
+      await s3Client.send(command);
+      fileStoragePath = `https://${S3_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${blobName}`;
     } else {
-      // Local disk fallback path
       fileStoragePath = req.file.path;
     }
 
-    // Save metadata in PostgreSQL
     const insertQuery = `
       INSERT INTO files (original_name, storage_path, mime_type, file_size, storage_mode)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *;
+      VALUES ($1, $2, $3, $4, $5) RETURNING *;
     `;
     const result = await pool.query(insertQuery, [originalname, fileStoragePath, mimetype, size, UPLOAD_MODE]);
 
-    res.status(201).json({
-      message: 'File uploaded successfully!',
-      file: result.rows[0]
-    });
+    res.status(201).json({ message: 'File uploaded successfully!', file: result.rows[0] });
   } catch (err) {
     console.error('Upload Error:', err);
     res.status(500).json({ error: 'Failed to process file upload.' });
   }
 });
 
-// 6. List Uploaded Files
 app.get('/api/files', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM files ORDER BY created_at DESC');
@@ -148,6 +128,4 @@ app.get('/api/files', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-}); 
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
