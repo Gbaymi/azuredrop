@@ -26,7 +26,7 @@ services:
       - DB_NAME=azuredrop_db
       - UPLOAD_MODE=aws
       - AWS_REGION=eu-west-1
-      - S3_BUCKET_NAME=clouddrop-files-9912
+      - S3_BUCKET_NAME=louddrop-files-9912
 
   web:
     image: nginx:alpine
