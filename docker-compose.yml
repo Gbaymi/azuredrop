@@ -3,9 +3,9 @@ services:
     image: postgres:15-alpine
     container_name: azuredrop_db
     environment:
-      POSTGRES_USER: azuredrop_user
-      POSTGRES_PASSWORD: azuredrop_password
-      POSTGRES_DB: azuredrop_db
+      - POSTGRES_USER=azuredrop_user
+      - POSTGRES_PASSWORD=azuredrop_password
+      - POSTGRES_DB=azuredrop_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,17 +18,16 @@ services:
     build: ./backend
     container_name: azuredrop_api
     ports:
-      - "5000:5000"    # Exposes port 5000 to Windows localhost for direct testing
-    api:
-    # ... (keep your existing build/ports config)
+      - "5000:5000"
     environment:
       - DB_HOST=db
       - DB_USER=azuredrop_user
       - DB_PASSWORD=azuredrop_password
       - DB_NAME=azuredrop_db
       - UPLOAD_MODE=aws
-      - AWS_REGION=eu-west-1  # Change to your specific region if different
-      - S3_BUCKET_NAME=clouddrop-files-9912 # Ensure this matches the bucket name from your screenshot
+      - AWS_REGION=eu-west-1
+      - S3_BUCKET_NAME=clouddrop-files-9912
+
   web:
     image: nginx:alpine
     container_name: azuredrop_nginx
