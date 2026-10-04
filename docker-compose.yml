@@ -20,15 +20,10 @@ services:
     ports:
       - "5000:5000"    # Exposes port 5000 to Windows localhost for direct testing
     environment:
-      PORT: 5000
-      DB_HOST: db
-      DB_USER: azuredrop_user
-      DB_PASSWORD: azuredrop_password
-      DB_NAME: azuredrop_db
-      DB_PORT: 5432
-    depends_on:
-      db:
-        condition: service_healthy
+      - DB_HOST=db
+      - UPLOAD_MODE=aws
+      - AWS_REGION=eu-west-1       # Change to your exact AWS region (e.g., us-east-1)
+      - S3_BUCKET_NAME=clouddrop-files-9912 # Put your exact S3 bucket name here
 
   web:
     image: nginx:alpine
