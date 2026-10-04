@@ -1,63 +1,457 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AzureDrop - File Upload Platform</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AzureDrop</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; background: #f4f7f6; }
-        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h2 { color: #0078d4; }
-        input[type="file"] { margin: 15px 0; }
-        button { background: #0078d4; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #005a9e; }
-        #status { margin-top: 15px; font-weight: bold; }
-        ul { background: #eee; padding: 15px 30px; border-radius: 4px; }
+        :root {
+            --bg: #f3f7ff;
+            --panel: rgba(255, 255, 255, 0.88);
+            --panel-strong: #ffffff;
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-soft: #dbeafe;
+            --text: #0f172a;
+            --muted: #64748b;
+            --success: #16a34a;
+            --success-soft: #dcfce7;
+            --border: rgba(148, 163, 184, 0.25);
+            --shadow: 0 24px 60px rgba(37, 99, 235, 0.14);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 25%),
+                radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.12), transparent 25%),
+                var(--bg);
+            color: var(--text);
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }
+
+        .shell {
+            width: min(760px, 100%);
+            background: var(--panel);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            padding: 28px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-badge {
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary), #38bdf8);
+            color: white;
+            font-weight: 700;
+            box-shadow: 0 12px 28px rgba(37, 99, 235, 0.35);
+        }
+
+        h2 {
+            margin: 0;
+            font-size: clamp(1.6rem, 3vw, 2.2rem);
+        }
+
+        .chip {
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: var(--primary-soft);
+            color: var(--primary-dark);
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .upload-box {
+            background: linear-gradient(180deg, rgba(219, 234, 254, 0.65), rgba(255,255,255,0.9));
+            border: 1.5px dashed rgba(37, 99, 235, 0.4);
+            border-radius: 18px;
+            padding: 26px 20px;
+            text-align: center;
+            margin-bottom: 18px;
+        }
+
+        .upload-box p {
+            margin: 0 0 14px;
+            color: var(--muted);
+            font-size: 0.96rem;
+        }
+
+        .upload-actions {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .button,
+        .ghost-button {
+            border: none;
+            border-radius: 12px;
+            padding: 12px 18px;
+            font-size: 0.96rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        }
+
+        .button {
+            background: linear-gradient(135deg, var(--primary), #3b82f6);
+            color: white;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+        }
+
+        .ghost-button {
+            background: white;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .button:hover,
+        .ghost-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .selected-file {
+            margin-top: 14px;
+            color: var(--text);
+            font-weight: 600;
+            font-size: 0.92rem;
+            min-height: 20px;
+        }
+
+        #status {
+            margin-top: 16px;
+            min-height: 22px;
+            font-weight: 700;
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: rgba(148, 163, 184, 0.08);
+            color: var(--text);
+        }
+
+        #status.success {
+            background: var(--success-soft);
+            color: #166534;
+        }
+
+        #status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 24px 0 12px;
+        }
+
+        .section-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .refresh-link {
+            background: transparent;
+            border: none;
+            color: var(--primary-dark);
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        #fileList {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 10px;
+        }
+
+        #fileList li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: white;
+            border: 1px solid var(--border);
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .file-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .file-name {
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-size {
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .file-badge {
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            background: var(--primary-soft);
+            color: var(--primary-dark);
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            padding: 18px 14px;
+            text-align: center;
+            color: var(--muted);
+            background: rgba(148, 163, 184, 0.08);
+            border: 1px dashed rgba(148, 163, 184, 0.36);
+            border-radius: 12px;
+        }
+
+        @media (max-width: 540px) {
+            .shell {
+                padding: 20px 16px;
+            }
+
+            .topbar,
+            .section-header,
+            #fileList li {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .upload-actions {
+                width: 100%;
+            }
+
+            .button,
+            .ghost-button {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2>AzureDrop File Upload</h2>
-        <input type="file" id="fileInput" />
-        <br>
-        <button onclick="uploadFile()">Upload File</button>
-        <div id="status"></div>
+    <div class="shell">
+        <div class="topbar">
+            <div class="brand">
+                <div class="brand-badge">A</div>
+                <h2>AzureDrop</h2>
+            </div>
+            <div class="chip">Files Ready</div>
+        </div>
 
-        <h3>Uploaded Files</h3>
+        <div class="upload-box">
+            <p>Drag and drop a file or choose one from your device.</p>
+            <div class="upload-actions">
+                <label for="fileInput" class="ghost-button" style="display: inline-block;">Choose File</label>
+                <input type="file" id="fileInput" />
+                <button class="button" onclick="uploadFile()">Upload File</button>
+            </div>
+            <div id="selectedFile" class="selected-file"></div>
+        </div>
+
+        <div id="status">Waiting for upload.</div>
+
+        <div class="section-header">
+            <h3>Uploaded Files</h3>
+            <button class="refresh-link" onclick="fetchFiles()">Refresh</button>
+        </div>
+
         <ul id="fileList"></ul>
     </div>
 
     <script>
-        async function fetchFiles() {
-            const res = await fetch('/api/files');
-            const data = await res.json();
-            const list = document.getElementById('fileList');
-            list.innerHTML = '';
-            data.files.forEach(f => {
-                const li = document.createElement('li');
-                li.textContent = `${f.original_name} (${(f.file_size/1024).toFixed(1)} KB)`;
-                list.appendChild(li);
+        const fileInput = document.getElementById('fileInput');
+        const selectedFile = document.getElementById('selectedFile');
+        const dropZone = document.getElementById('dropZone');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progressWrap = document.getElementById('progressWrap');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+
+        function setFileSelection(file) {
+            selectedFile.textContent = file ? `Selected: ${file.name}` : '';
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (event) => {
+                event.preventDefault();
+                dropZone.classList.add('dragover');
             });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (event) => {
+                event.preventDefault();
+                dropZone.classList.remove('dragover');
+            });
+        });
+
+        dropZone.addEventListener('drop', (event) => {
+            const [file] = event.dataTransfer.files;
+            if (file) {
+                fileInput.files = event.dataTransfer.files;
+                setFileSelection(file);
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            setFileSelection(file);
+        });
+
+        function resetProgress() {
+            progressFill.style.width = '0%';
+            progressText.textContent = '0%';
+            progressWrap.classList.remove('visible');
+        }
+
+        function updateProgress(percent) {
+            progressFill.style.width = `${percent}%`;
+            progressText.textContent = `${Math.round(percent)}%`;
+        }
+
+        function setStatus(message, type = '') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = type;
+        }
+
+        async function fetchFiles() {
+            try {
+                const res = await fetch('/api/files');
+                const data = await res.json();
+                const list = document.getElementById('fileList');
+                list.innerHTML = '';
+
+                if (!data.files || data.files.length === 0) {
+                    list.innerHTML = '<li class="empty-state">No files uploaded yet.</li>';
+                    return;
+                }
+
+                data.files.forEach(file => {
+                    const li = document.createElement('li');
+                    const meta = document.createElement('div');
+                    meta.className = 'file-meta';
+
+                    const name = document.createElement('div');
+                    name.className = 'file-name';
+                    name.textContent = file.original_name || 'Unnamed file';
+
+                    const size = document.createElement('div');
+                    size.className = 'file-size';
+                    size.textContent = `${(Number(file.file_size || 0) / 1024).toFixed(1)} KB`;
+
+                    meta.appendChild(name);
+                    meta.appendChild(size);
+
+                    const badge = document.createElement('div');
+                    badge.className = 'file-badge';
+                    badge.textContent = file.storage_mode === 'aws' ? 'AWS' : 'Local';
+
+                    li.appendChild(meta);
+                    li.appendChild(badge);
+                    list.appendChild(li);
+                });
+            } catch (error) {
+                console.error(error);
+                setStatus('Unable to load uploaded files.', 'error');
+            }
         }
 
         async function uploadFile() {
-            const fileInput = document.getElementById('fileInput');
-            if (!fileInput.files[0]) return alert('Select a file first!');
-            
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-
-            document.getElementById('status').innerText = 'Uploading...';
-            const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
-            const data = await res.json();
-            
-            if (res.ok) {
-                document.getElementById('status').innerText = 'Upload Successful!';
-                fileInput.value = '';
-                fetchFiles();
-            } else {
-                document.getElementById('status').innerText = 'Upload Failed!';
+            const file = fileInput.files[0];
+            if (!file) {
+                setStatus('Please select a file before uploading.', 'error');
+                return;
             }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            setStatus('Uploading...', '');
+            uploadBtn.disabled = true;
+            progressWrap.classList.add('visible');
+            updateProgress(0);
+
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+
+                xhr.upload.addEventListener('progress', (event) => {
+                    if (event.lengthComputable) {
+                        const percent = (event.loaded / event.total) * 100;
+                        updateProgress(percent);
+                    }
+                });
+
+                xhr.onload = () => {
+                    uploadBtn.disabled = false;
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        const response = JSON.parse(xhr.responseText || '{}');
+                        setStatus('Upload successful!', 'success');
+                        fileInput.value = '';
+                        setFileSelection(null);
+                        fetchFiles();
+                        resolve(response);
+                    } else {
+                        const error = JSON.parse(xhr.responseText || '{}');
+                        setStatus(error.error || 'Upload failed.', 'error');
+                        reject(new Error(error.error || 'Upload failed.'));
+                    }
+                    resetProgress();
+                };
+
+                xhr.onerror = () => {
+                    uploadBtn.disabled = false;
+                    setStatus('Network error during upload.', 'error');
+                    resetProgress();
+                    reject(new Error('Network error during upload.'));
+                };
+
+                xhr.open('POST', '/api/files/upload');
+                xhr.send(formData);
+            });
         }
 
         fetchFiles();
