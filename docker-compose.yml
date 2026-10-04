@@ -25,9 +25,8 @@ services:
       - DB_PASSWORD=azuredrop_password
       - DB_NAME=azuredrop_db
       - UPLOAD_MODE=aws
-      - AWS_REGION=eu-west-1
+      - AWS_REGION=us-east-1
       - S3_BUCKET_NAME=louddrop-files-9912
-
   web:
     image: nginx:alpine
     container_name: azuredrop_nginx
