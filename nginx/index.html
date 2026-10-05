@@ -302,29 +302,30 @@
     </div>
 
     <script>
+        // Updated to use the new UI classes and IDs
         const fileInput = document.getElementById('fileInput');
         const selectedFile = document.getElementById('selectedFile');
-        const dropZone = document.getElementById('dropZone');
-        const uploadBtn = document.getElementById('uploadBtn');
-        const progressWrap = document.getElementById('progressWrap');
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
+        const dropZone = document.querySelector('.upload-box'); 
+        const uploadBtn = document.querySelector('.button[onclick="uploadFile()"]');
 
         function setFileSelection(file) {
             selectedFile.textContent = file ? `Selected: ${file.name}` : '';
         }
 
+        // Drag and drop listeners mapping to the new .upload-box class
         ['dragenter', 'dragover'].forEach(eventName => {
             dropZone.addEventListener(eventName, (event) => {
                 event.preventDefault();
-                dropZone.classList.add('dragover');
+                dropZone.style.borderColor = 'var(--primary)';
+                dropZone.style.background = 'rgba(219, 234, 254, 0.9)';
             });
         });
 
         ['dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, (event) => {
                 event.preventDefault();
-                dropZone.classList.remove('dragover');
+                dropZone.style.borderColor = '';
+                dropZone.style.background = '';
             });
         });
 
@@ -340,17 +341,6 @@
             const file = fileInput.files[0];
             setFileSelection(file);
         });
-
-        function resetProgress() {
-            progressFill.style.width = '0%';
-            progressText.textContent = '0%';
-            progressWrap.classList.remove('visible');
-        }
-
-        function updateProgress(percent) {
-            progressFill.style.width = `${percent}%`;
-            progressText.textContent = `${Math.round(percent)}%`;
-        }
 
         function setStatus(message, type = '') {
             const status = document.getElementById('status');
@@ -412,18 +402,9 @@
 
             setStatus('Uploading...', '');
             uploadBtn.disabled = true;
-            progressWrap.classList.add('visible');
-            updateProgress(0);
 
             return new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-
-                xhr.upload.addEventListener('progress', (event) => {
-                    if (event.lengthComputable) {
-                        const percent = (event.loaded / event.total) * 100;
-                        updateProgress(percent);
-                    }
-                });
 
                 xhr.onload = () => {
                     uploadBtn.disabled = false;
@@ -439,13 +420,11 @@
                         setStatus(error.error || 'Upload failed.', 'error');
                         reject(new Error(error.error || 'Upload failed.'));
                     }
-                    resetProgress();
                 };
 
                 xhr.onerror = () => {
                     uploadBtn.disabled = false;
                     setStatus('Network error during upload.', 'error');
-                    resetProgress();
                     reject(new Error('Network error during upload.'));
                 };
 
